@@ -1,122 +1,204 @@
-// script.js
-// Fixed due date (May 20, 2026)
-const DUE_DATE = new Date('2026-05-20T23:59:59Z')
+// script.js - Stage 1a Advanced Todo Card (Plain CSS + Full Interactivity)
 
-function formatDueDate(date) {
-    const month = date.toLocaleString('en-US', { month: 'short', timeZone: 'UTC' })
-    const day = date.getUTCDate()
-    const year = date.getUTCFullYear()
-    return `${month} ${day}, ${year}`
+let currentTodo = {
+    title: "Build Testable Todo Card",
+    description: "Implement a fully testable, accessible, and responsive Todo card component with all required data-testid values, keyboard navigation, and live time-remaining updates. This is a longer description to test the expand/collapse feature.",
+    priority: "Medium",
+    dueDate: new Date('2026-05-20T23:59:59Z'),
+    status: "Pending"
+};
+
+let originalTodo = {};
+
+const DUE_DATE = currentTodo.dueDate;
+
+// Render card
+function renderCard() {
+    // Title + strike-through
+    const titleEl = document.getElementById('todo-title');
+    titleEl.textContent = currentTodo.title;
+    titleEl.classList.toggle('strike-through', currentTodo.status === 'Done');
+
+    // Description
+    document.getElementById('todo-description').textContent = currentTodo.description;
+
+    // Priority badge + indicator
+    const priorityBadge = document.getElementById('priority-badge');
+    priorityBadge.textContent = currentTodo.priority.toUpperCase();
+    priorityBadge.style.backgroundColor = 
+        currentTodo.priority === 'High' ? '#fee2e2' : 
+        currentTodo.priority === 'Medium' ? '#fef3c7' : '#ecfdf5';
+    priorityBadge.style.color = 
+        currentTodo.priority === 'High' ? '#b91c1c' : 
+        currentTodo.priority === 'Medium' ? '#b45309' : '#10b981';
+
+    const indicator = document.getElementById('priority-indicator');
+    indicator.style.backgroundColor = 
+        currentTodo.priority === 'High' ? '#ef4444' : 
+        currentTodo.priority === 'Medium' ? '#f59e0b' : '#10b981';
+
+    // Status badge
+    const statusEl = document.getElementById('todo-status');
+    statusEl.textContent = currentTodo.status.toUpperCase();
+    statusEl.style.backgroundColor = 
+        currentTodo.status === 'Done' ? '#ecfdf5' : 
+        currentTodo.status === 'In Progress' ? '#dbeafe' : '#f1f5f9';
+    statusEl.style.color = 
+        currentTodo.status === 'Done' ? '#10b981' : 
+        currentTodo.status === 'In Progress' ? '#3b82f6' : '#64748b';
+
+    // Sync status dropdown
+    document.getElementById('status-control').value = currentTodo.status;
+
+    // Sync checkbox
+    document.getElementById('complete-toggle').checked = currentTodo.status === 'Done';
+
+    // Due date
+    const dueEl = document.getElementById('due-date');
+    dueEl.textContent = `Due ${currentTodo.dueDate.toLocaleDateString('en-US', { 
+        month: 'short', day: 'numeric', year: 'numeric', timeZone: 'UTC' 
+    })}`;
+
+    updateTimeRemaining();
 }
 
-// Calculate friendly time remaining or overdue status
-function getTimeRemaining(due) {
-    const now = new Date()
-    const diffMs = due.getTime() - now.getTime()
-    
-    if (diffMs < 0) {
-        const overdueMs = Math.abs(diffMs)
-        const hours = Math.floor(overdueMs / (1000 * 60 * 60))
-        const days = Math.floor(overdueMs / (1000 * 60 * 60 * 24))
-        
-        if (days > 0) return `Overdue by ${days} days`
-        if (hours > 0) return `Overdue by ${hours} hours`
-        return 'Overdue!'
-    }
-    
-    const days = Math.floor(diffMs / (1000 * 60 * 60 * 24))
-    const hours = Math.floor((diffMs % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60))
-    
-    if (days >= 2) return `Due in ${days} days`
-    if (days === 1) return 'Due tomorrow'
-    if (hours >= 1) return `Due in ${hours} hours`
-    return 'Due now!'
-}
-
-// Update time remaining display
+// Granular time + overdue
 function updateTimeRemaining() {
-    const timeEl = document.getElementById('time-remaining')
-    if (!timeEl) return
-    timeEl.textContent = getTimeRemaining(DUE_DATE)
-}
+    const timeEl = document.getElementById('time-remaining');
+    const overdueEl = document.getElementById('overdue-indicator');
 
-// Handle checkbox toggle
-function handleCheckboxToggle(e) {
-    const title = document.getElementById('todo-title')
-    const status = document.getElementById('todo-status')
-    const isChecked = e.target.checked
-    
-    if (isChecked) {
-        title.classList.add('strike-through')
-        status.textContent = 'DONE'
-        status.className = 'px-4 py-1 text-xs font-semibold rounded-2xl bg-emerald-100 text-emerald-700 flex items-center'
-    } else {
-        title.classList.remove('strike-through')
-        status.textContent = 'PENDING'
-        status.className = 'px-4 py-1 text-xs font-semibold rounded-2xl bg-slate-100 text-slate-600 flex items-center'
+    if (currentTodo.status === 'Done') {
+        timeEl.textContent = ' Completed';
+        timeEl.style.color = '#10b981';
+        overdueEl.style.display = 'none';
+        return;
     }
-}
 
-// Edit button handler
-function handleEdit() {
-    console.log('%c Edit button clicked - task would open in edit modal', 'color: #3b82f6; font-weight: 600')
-    alert('🖊️ Edit mode opened! (In a real app this would show a form)')
-}
+    const now = new Date();
+    const diffMs = currentTodo.dueDate.getTime() - now.getTime();
 
-// Delete button handler
-function handleDelete() {
-    console.log('%c Delete button clicked - task would be removed', 'color: #ef4444; font-weight: 600')
-    
-    if (confirm('Delete this todo?')) {
-        const card = document.querySelector('[data-testid="test-todo-card"]')
-        card.style.transition = 'all 0.4s cubic-bezier(0.4, 0, 1, 1)'
-        card.style.opacity = '0'
-        card.style.transform = 'translateY(20px)'
+    let text = '';
+    if (diffMs < 0) {
+        const overdueMs = Math.abs(diffMs);
+        const minutes = Math.floor(overdueMs / 60000);
+        const hours = Math.floor(minutes / 60);
+        const days = Math.floor(hours / 24);
         
-        setTimeout(() => {
-            alert(' Task deleted! (Card removed in real app)')
-            card.style.transition = ''
-            card.style.opacity = '1'
-            card.style.transform = ''
-        }, 400)
+        if (days > 0) text = `Overdue by ${days} days`;
+        else if (hours > 0) text = `Overdue by ${hours} hours`;
+        else text = `Overdue by ${minutes} minutes`;
+        
+        overdueEl.style.display = 'inline-flex';
+    } else {
+        const minutes = Math.floor(diffMs / 60000);
+        const hours = Math.floor(minutes / 60);
+        const days = Math.floor(hours / 24);
+        
+        if (days >= 1) text = `Due in ${days} days`;
+        else if (hours >= 1) text = `Due in ${hours} hours`;
+        else if (minutes > 0) text = `Due in ${minutes} minutes`;
+        else text = 'Due now!';
+        
+        overdueEl.style.display = 'none';
+    }
+
+    timeEl.textContent = text;
+    timeEl.style.color = diffMs >= 0 ? '#3b82f6' : '#ef4444';
+}
+
+// Expand / Collapse
+function toggleExpand() {
+    const section = document.getElementById('collapsible-section');
+    const btn = document.getElementById('expand-toggle');
+    const isExpanded = btn.getAttribute('aria-expanded') === 'true';
+    
+    if (isExpanded) {
+        section.style.maxHeight = '110px';
+        btn.setAttribute('aria-expanded', 'false');
+        btn.innerHTML = `Read more <span style="font-size:18px; line-height:1;">↓</span>`;
+    } else {
+        section.style.maxHeight = section.scrollHeight + 'px';
+        btn.setAttribute('aria-expanded', 'true');
+        btn.innerHTML = `Show less <span style="font-size:18px; line-height:1; transform:rotate(180deg);">↓</span>`;
     }
 }
 
-// Initialize the entire card
-function initializeTodoCard() {
-    // Set due date using UTC formatting (now always shows May 20)
-    const dueDateEl = document.getElementById('due-date')
-    if (dueDateEl) {
-        dueDateEl.textContent = `Due ${formatDueDate(DUE_DATE)}`
-    }
+// Edit Mode
+function enterEditMode() {
+    originalTodo = { ...currentTodo };
+    document.getElementById('main-view').style.display = 'none';
+    const form = document.getElementById('edit-form');
+    form.style.display = 'flex';
     
-    // Initial time remaining
-    updateTimeRemaining()
+    // Fill form
+    document.getElementById('edit-title').value = currentTodo.title;
+    document.getElementById('edit-description').value = currentTodo.description;
+    document.getElementById('edit-priority').value = currentTodo.priority;
+    document.getElementById('edit-due-date').value = currentTodo.dueDate.toISOString().slice(0, 16);
     
-    // Live update every 60 seconds
-    setInterval(updateTimeRemaining, 60000)
-    
-    // Checkbox
-    const checkbox = document.getElementById('complete-toggle')
-    if (checkbox) {
-        checkbox.addEventListener('change', handleCheckboxToggle)
-    }
-    
-    // Edit button
-    const editBtn = document.getElementById('edit-button')
-    if (editBtn) {
-        editBtn.addEventListener('click', handleEdit)
-    }
-    
-    // Delete button
-    const deleteBtn = document.getElementById('delete-button')
-    if (deleteBtn) {
-        deleteBtn.addEventListener('click', handleDelete)
-    }
-    
-    console.log('%c Testable Todo Card initialized successfully!', 'color: #3b82f6; font-size: 16px; font-weight: 700')
-    console.log('Due date now correctly shows May 20 in every timezone')
+    // Return focus to Edit button when closed
+    form.querySelector('#cancel-button').focus();
 }
 
-// Run when the page is fully loaded
-document.addEventListener('DOMContentLoaded', initializeTodoCard)
+function exitEditMode() {
+    document.getElementById('edit-form').style.display = 'none';
+    document.getElementById('main-view').style.display = 'block';
+    document.getElementById('edit-button').focus(); // return focus
+}
+
+function saveEdit() {
+    currentTodo.title = document.getElementById('edit-title').value;
+    currentTodo.description = document.getElementById('edit-description').value;
+    currentTodo.priority = document.getElementById('edit-priority').value;
+    currentTodo.dueDate = new Date(document.getElementById('edit-due-date').value);
+    renderCard();
+    exitEditMode();
+}
+
+// Status sync
+function syncStatus(newStatus) {
+    currentTodo.status = newStatus;
+    renderCard();
+}
+
+// Initialize
+function initialize() {
+    renderCard();
+
+    // Checkbox ↔ Status sync
+    document.getElementById('complete-toggle').addEventListener('change', (e) => {
+        syncStatus(e.target.checked ? 'Done' : 'Pending');
+    });
+
+    document.getElementById('status-control').addEventListener('change', (e) => {
+        syncStatus(e.target.value);
+    });
+
+    // Expand toggle
+    document.getElementById('expand-toggle').addEventListener('click', toggleExpand);
+
+    // Edit / Save / Cancel
+    document.getElementById('edit-button').addEventListener('click', enterEditMode);
+    document.getElementById('save-button').addEventListener('click', saveEdit);
+    document.getElementById('cancel-button').addEventListener('click', () => {
+        currentTodo = { ...originalTodo };
+        renderCard();
+        exitEditMode();
+    });
+
+    // Delete
+    document.getElementById('delete-button').addEventListener('click', () => {
+        if (confirm('Delete this todo?')) {
+            alert(' Task deleted!');
+        }
+    });
+
+    // Live time update every 30 seconds
+    setInterval(() => {
+        if (currentTodo.status !== 'Done') updateTimeRemaining();
+    }, 30000);
+
+    console.log('%c Stage 1a Fully Interactive Todo Card Ready!', 'color:#10b981; font-size:16px; font-weight:700');
+}
+
+document.addEventListener('DOMContentLoaded', initialize);
